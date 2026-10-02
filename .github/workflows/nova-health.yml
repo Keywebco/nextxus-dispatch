@@ -21,8 +21,29 @@ jobs:
           REPORT="health-reports/${DATE}.md"
           printf '# Health Report %s UTC\n\n| URL | Status |\n|-----|--------|\n' "$DATE" > "$REPORT"
           FAILED=0
-          for url in \n            "https://nextxus.online" \n            "https://nextxus.org" \n            "https://nextxus.studio" \n            "https://nextxus.tech" \n            "https://nextxus.space" \n            "https://nextxus.help" \n            "https://next-xus.com" \n            "https://keywebco.github.io" \n            "https://keywebco.github.io/nextxus-sim/" \n            "https://keywebco.github.io/nextxus-sim/roger-sim.html" \n            "https://keywebco.github.io/ring-of-12/" \n            "https://keywebco.github.io/ring-of-three/" \n            "https://keywebco.github.io/plexus-relay/" \n            "https://keywebco.github.io/nextxus-blog/" \n            "https://keywebco.github.io/nextxus-tools/" \n            "https://keywebco.github.io/sovereigntools/" \n            "https://keywebco.github.io/roger-keyserling/" \n            "https://keywebco.github.io/nextxus-ai-minds-lab/" \n            "https://roger-sim-api.onrender.com/health" \n            "https://ring-of-12-api.onrender.com/health"
-          do
+          URLS=(
+            "https://nextxus.online"
+            "https://nextxus.org"
+            "https://nextxus.studio"
+            "https://nextxus.tech"
+            "https://nextxus.space"
+            "https://nextxus.help"
+            "https://next-xus.com"
+            "https://keywebco.github.io"
+            "https://keywebco.github.io/nextxus-sim/"
+            "https://keywebco.github.io/nextxus-sim/roger-sim.html"
+            "https://keywebco.github.io/ring-of-12/"
+            "https://keywebco.github.io/ring-of-three/"
+            "https://keywebco.github.io/plexus-relay/"
+            "https://keywebco.github.io/nextxus-blog/"
+            "https://keywebco.github.io/nextxus-tools/"
+            "https://keywebco.github.io/sovereigntools/"
+            "https://keywebco.github.io/roger-keyserling/"
+            "https://keywebco.github.io/nextxus-ai-minds-lab/"
+            "https://roger-sim-api.onrender.com/health"
+            "https://ring-of-12-api.onrender.com/health"
+          )
+          for url in "${URLS[@]}"; do
             STATUS=$(curl -L -sS -o /dev/null -w '%{http_code}' --connect-timeout 10 --max-time 30 "$url") || STATUS=000
             if [ "$STATUS" = 200 ]; then
               printf '| %s | ✅ %s |\n' "$url" "$STATUS" >> "$REPORT"

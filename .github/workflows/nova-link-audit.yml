@@ -1,0 +1,106 @@
+name: Nova Link Auditor
+on:
+  schedule:
+    - cron: '0 7 * * 1'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: nova-link-audit
+  cancel-in-progress: false
+jobs:
+  link-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Audit links on five hub pages
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from datetime import datetime, timezone
+          from html.parser import HTMLParser
+          from pathlib import Path
+          from urllib.error import HTTPError, URLError
+          from urllib.parse import urljoin, urldefrag, urlparse
+          from urllib.request import Request, urlopen
+
+          pages = [
+              'https://keywebco.github.io/index.html',
+              'https://keywebco.github.io/nextxus-sim/index.html',
+              'https://keywebco.github.io/ring-of-12/index.html',
+              'https://keywebco.github.io/nextxus-blog/index.html',
+              'https://keywebco.github.io/sovereigntools/index.html',
+          ]
+          class Links(HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.hrefs = []
+              def handle_starttag(self, tag, attrs):
+                  if tag.lower() == 'a':
+                      for name, value in attrs:
+                          if name.lower() == 'href' and value:
+                              self.hrefs.append(value)
+
+          def check(url, fetch=False):
+              try:
+                  request = Request(url, headers={'User-Agent': 'NextXus-Nova-Link-Auditor/1.0'},
+                                    method='GET' if fetch else 'HEAD')
+                  with urlopen(request, timeout=20) as response:
+                      return response.status, response.read() if fetch else b''
+              except HTTPError as exc:
+                  if exc.code in (403, 405, 501) and not fetch:
+                      return check(url, fetch=True)
+                  return exc.code, b''
+              except (URLError, TimeoutError, ValueError, OSError):
+                  return 0, b''
+
+          now = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+          report = Path(f'audit-reports/link-audit-{now}.md')
+          rows = []
+          checked = 0
+          skipped = 0
+          for page in pages:
+              status, html = check(page, fetch=True)
+              if status != 200:
+                  rows.append((page, page, str(status or 'network error')))
+                  continue
+              parser = Links()
+              parser.feed(html.decode('utf-8', errors='replace'))
+              targets = set()
+              for href in parser.hrefs:
+                  if href.startswith('#'):
+                      skipped += 1
+                      continue
+                  target = urldefrag(urljoin(page, href))[0]
+                  if urlparse(target).scheme not in ('http', 'https'):
+                      skipped += 1
+                      continue
+                  targets.add(target)
+              for target in sorted(targets):
+                  code, _ = check(target)
+                  checked += 1
+                  if code != 200:
+                      rows.append((page, target, str(code or 'network error')))
+          lines = [f'# Link Audit {now} UTC', '',
+                   f'Pages attempted: {len(pages)}. Links checked: {checked}. Non-HTTP/fragment links skipped: {skipped}.',
+                   f'Dead links or inaccessible pages: {len(rows)}.', '']
+          if rows:
+              lines += ['| Source page | Link or page | HTTP status |', '|---|---|---|']
+              lines += [f'| {source} | {target} | {status} |' for source, target, status in rows]
+          else:
+              lines.append('No dead HTTP links found in fetched pages.')
+          report.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+          if rows:
+              raise SystemExit(1)
+          PY
+      - name: Commit audit even when links fail
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add audit-reports/
+          if ! git diff --cached --quiet; then
+            git commit -m "Nova link audit $(date -u +%Y-%m-%d)"
+            git push
+          fi

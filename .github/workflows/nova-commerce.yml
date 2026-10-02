@@ -1,0 +1,86 @@
+name: Nova Commerce Monitor
+on:
+  schedule:
+    - cron: '0 8 * * 2'   # 08:00 UTC Tuesday = 3 AM CDT Tuesday
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: nova-commerce
+  cancel-in-progress: false
+
+jobs:
+  check-commerce:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Gumroad product links
+        shell: bash
+        run: |
+          # Roger's live Gumroad listings, exactly as wired into store.html
+          # (identical in nextxus-unified-storefront, nextxus-org-sovereign,
+          # keywebco.github.io, nextxus-sim). All 21 verified HTTP 200 on 2026-10-02.
+          # Gumroad is the source of truth: add new links here when Roger lists them.
+          links=(
+            "https://keywebster.gumroad.com/l/ahfwii"
+            "https://keywebster.gumroad.com/l/akvgn"
+            "https://keywebster.gumroad.com/l/auiqnf"
+            "https://keywebster.gumroad.com/l/bdtad"
+            "https://keywebster.gumroad.com/l/benjxd"
+            "https://keywebster.gumroad.com/l/djgvjx"
+            "https://keywebster.gumroad.com/l/echyii"
+            "https://keywebster.gumroad.com/l/gpowew"
+            "https://keywebster.gumroad.com/l/jeeynk"
+            "https://keywebster.gumroad.com/l/kbycd"
+            "https://keywebster.gumroad.com/l/nadrc"
+            "https://keywebster.gumroad.com/l/oihjh"
+            "https://keywebster.gumroad.com/l/ovbmcs"
+            "https://keywebster.gumroad.com/l/pcbjfk"
+            "https://keywebster.gumroad.com/l/qrjhdm"
+            "https://keywebster.gumroad.com/l/qzgjhs"
+            "https://keywebster.gumroad.com/l/rnhbhi"
+            "https://keywebster.gumroad.com/l/sgtcze"
+            "https://keywebster.gumroad.com/l/veyzvd"
+            "https://keywebster.gumroad.com/l/wffrtf"
+            "https://keywebster.gumroad.com/l/ysbzfe"
+          )
+          report="/tmp/report.md"
+          echo "# Nova Commerce Report" > $report
+          echo "Date: $(date -u)" >> $report
+          echo "" >> $report
+          failed=0
+          for link in "${links[@]}"; do
+            status=$(curl -s -m 15 -o /dev/null -w "%{http_code}" "$link") || true
+            echo "## $link" >> $report
+            echo "- HTTP status: ${status:-000}" >> $report
+            if [ "$status" = "200" ]; then
+              echo "- STATUS: OK" >> $report
+            else
+              echo "- STATUS: FAIL" >> $report
+              failed=$((failed+1))
+            fi
+            echo "" >> $report
+          done
+          echo "Failed: $failed / ${#links[@]}" >> $report
+          echo "${#links[@]} Gumroad links checked, $failed failing" > /tmp/result.txt
+      - name: Commit report and update lattice ledger
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          command -v yq >/dev/null || { sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 && sudo chmod +x /usr/local/bin/yq; }
+          git config user.name "nova-commerce"
+          git config user.email "nova-commerce@nextxus.online"
+          NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          RESULT=$(cat /tmp/result.txt 2>/dev/null || echo "run error - no result recorded")
+          export NOW RESULT
+          for attempt in 1 2 3; do
+            git fetch -q origin main && git reset -q --hard origin/main
+            cp /tmp/report.md lattice/nova-commerce-report.md
+            yq -i '.last_updated = strenv(NOW) | .workers."nova-commerce".last_run = strenv(NOW) | .workers."nova-commerce".last_result = strenv(RESULT)' lattice/lattice_state.yaml
+            git add lattice/nova-commerce-report.md lattice/lattice_state.yaml
+            git diff --cached --quiet && exit 0
+            git commit -q -m "nova-commerce: weekly Gumroad link audit $(date -u +%Y-%m-%d)"
+            if git push origin HEAD:main; then exit 0; fi
+            sleep 5
+          done
+          exit 1

@@ -1,0 +1,60 @@
+name: Nova Daily Dispatch
+on:
+  schedule:
+    - cron: '0 8 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: nova-dispatch
+  cancel-in-progress: false
+jobs:
+  daily-dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read schedule and create daily status
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          now = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+          schedule = Path('SCHEDULE.md').read_text(encoding='utf-8')
+          agents = []
+          for line in schedule.splitlines():
+              columns = [cell.strip() for cell in line.strip().strip('|').split('|')]
+              if len(columns) == 4 and columns[1].startswith('Nova-') and columns[3] == 'Automated':
+                  if columns[1] not in agents:
+                      agents.append(columns[1])
+          if not agents:
+              raise SystemExit('No active Nova agents in SCHEDULE.md')
+          reports = sorted(Path('health-reports').glob('????-??-??-??.md'))
+          lines = [f'# Nova Daily Dispatch: {now} UTC', '',
+                   '## Active scheduled Nova agents',
+                   *(f'- {agent}' for agent in agents), '',
+                   '## Latest health report']
+          if reports:
+              latest = reports[-1]
+              lines.append(f'[{latest.name}](../{latest.as_posix()})')
+              lines += ['', '## Failed checks from latest health run']
+              failed = [row for row in latest.read_text(encoding='utf-8').splitlines() if row.startswith('| https://') and '❌' in row]
+              lines += failed if failed else ['None recorded.']
+          else:
+              lines += ['No health report exists yet.', '',
+                        '## Failed checks from latest health run',
+                        'Unknown, no health run has produced a report yet.']
+          lines += ['', '## Work orders', '[Read SCHEDULE.md](../SCHEDULE.md)']
+          Path(f'dispatch/{now}-status.md').write_text('\n'.join(lines) + '\n', encoding='utf-8')
+          PY
+      - name: Commit daily status
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add dispatch/
+          if ! git diff --cached --quiet; then
+            git commit -m "Nova daily dispatch $(date -u +%Y-%m-%d)"
+            git push
+          fi

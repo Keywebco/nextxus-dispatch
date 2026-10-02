@@ -19,6 +19,7 @@ jobs:
           python3 - <<'PY'
           from datetime import datetime, timezone
           from html.parser import HTMLParser
+          from http.client import InvalidURL
           from pathlib import Path
           from urllib.error import HTTPError, URLError
           from urllib.parse import urljoin, urldefrag, urlparse
@@ -51,7 +52,7 @@ jobs:
                   if exc.code in (403, 405, 501) and not fetch:
                       return check(url, fetch=True)
                   return exc.code, b''
-              except (URLError, TimeoutError, ValueError, OSError):
+              except (URLError, TimeoutError, ValueError, OSError, InvalidURL):
                   return 0, b''
 
           now = datetime.now(timezone.utc).strftime('%Y-%m-%d')
@@ -77,6 +78,9 @@ jobs:
                       continue
                   targets.add(target)
               for target in sorted(targets):
+                  if any(char.isspace() or ord(char) < 32 for char in target):
+                      rows.append((page, target, 'invalid URL'))
+                      continue
                   code, _ = check(target)
                   checked += 1
                   if code != 200:
@@ -86,7 +90,9 @@ jobs:
                    f'Dead links or inaccessible pages: {len(rows)}.', '']
           if rows:
               lines += ['| Source page | Link or page | HTTP status |', '|---|---|---|']
-              lines += [f'| {source} | {target} | {status} |' for source, target, status in rows]
+              for source, target, status in rows:
+                  target = target.replace('|', '%7C').replace('\n', ' ')[:240]
+                  lines.append(f'| {source} | {target} | {status} |')
           else:
               lines.append('No dead HTTP links found in fetched pages.')
           report.write_text('\n'.join(lines) + '\n', encoding='utf-8')
@@ -102,5 +108,10 @@ jobs:
           git add audit-reports/
           if ! git diff --cached --quiet; then
             git commit -m "Nova link audit $(date -u +%Y-%m-%d)"
-            git push
+            for attempt in 1 2 3; do
+              git pull --rebase origin main
+              if git push origin HEAD:main; then exit 0; fi
+              sleep 2
+            done
+            exit 1
           fi

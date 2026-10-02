@@ -1,0 +1,21 @@
+name: Nova Catalyst Memory Backup
+on:
+  schedule:
+    - cron: '0 */4 * * *' # Includes midnight UTC.
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: nova-memory
+  cancel-in-progress: false
+jobs:
+  catalyst-memory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install YAML parser
+        run: python3 -m pip install 'PyYAML==6.0.3'
+      - name: Snapshot reports and publish Echo Core session nodes
+        env:
+          SOVEREIGN_KNOWLEDGE_TOKEN: ${{ secrets.SOVEREIGN_KNOWLEDGE_TOKEN }}
+        run: python3 scripts/nova_memory.py

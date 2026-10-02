@@ -1,0 +1,99 @@
+name: Nova Readability Monitor
+on:
+  schedule:
+    - cron: '0 10 * * 3'   # 10:00 UTC Wednesday = 5 AM CDT Wednesday
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: nova-readability
+  cancel-in-progress: false
+
+jobs:
+  check-readability:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check plain-text readability of key pages
+        shell: bash
+        run: |
+          pages=(
+            "https://nextxus.online"
+            "https://nextxus.org"
+            "https://nextxus.tech"
+            "https://nextxus.space"
+            "https://keywebco.github.io/nextxus-sim/roger-sim.html"
+            "https://keywebco.github.io/nextxus-sim/aria-sim.html"
+            "https://keywebco.github.io/nextxus-sim/catalyst-sim.html"
+            "https://keywebco.github.io/nextxus-sim/muse-sim.html"
+          )
+          # Counts only text a crawler sees WITHOUT running JavaScript:
+          # <script>, <style>, <template> and <svg> contents are excluded.
+          cat > /tmp/visible_words.py <<'PY'
+          import sys
+          from html.parser import HTMLParser
+          class P(HTMLParser):
+              SKIP = {"script", "style", "template", "svg"}
+              def __init__(self):
+                  super().__init__(convert_charrefs=True)
+                  self.depth = 0
+                  self.words = 0
+              def handle_starttag(self, tag, attrs):
+                  if tag in self.SKIP:
+                      self.depth += 1
+              def handle_endtag(self, tag):
+                  if tag in self.SKIP and self.depth:
+                      self.depth -= 1
+              def handle_data(self, data):
+                  if not self.depth:
+                      self.words += len(data.split())
+          p = P()
+          p.feed(sys.stdin.read())
+          print(p.words)
+          PY
+          report="/tmp/report.md"
+          echo "# Nova Readability Report" > $report
+          echo "Date: $(date -u)" >> $report
+          echo "" >> $report
+          failed=0
+          for page in "${pages[@]}"; do
+            status=$(curl -sL -m 20 -o /tmp/page.html -w "%{http_code}" "$page") || true
+            word_count=$(python3 /tmp/visible_words.py < /tmp/page.html 2>/dev/null) || word_count=0
+            echo "## $page" >> $report
+            echo "- HTTP status: ${status:-000}" >> $report
+            echo "- Crawlable word count (no JavaScript): $word_count" >> $report
+            if [ "${status:-000}" != "200" ]; then
+              echo "- STATUS: FAIL - page did not load" >> $report
+              failed=$((failed+1))
+            elif [ "$word_count" -lt 50 ]; then
+              echo "- STATUS: FAIL - insufficient plain text for crawlers" >> $report
+              failed=$((failed+1))
+            else
+              echo "- STATUS: OK" >> $report
+            fi
+            echo "" >> $report
+            rm -f /tmp/page.html
+          done
+          echo "Failed: $failed / ${#pages[@]}" >> $report
+          echo "${#pages[@]} pages checked, $failed failing" > /tmp/result.txt
+      - name: Commit report and update lattice ledger
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          command -v yq >/dev/null || { sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 && sudo chmod +x /usr/local/bin/yq; }
+          git config user.name "nova-readability"
+          git config user.email "nova-readability@nextxus.online"
+          NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          RESULT=$(cat /tmp/result.txt 2>/dev/null || echo "run error - no result recorded")
+          export NOW RESULT
+          for attempt in 1 2 3; do
+            git fetch -q origin main && git reset -q --hard origin/main
+            cp /tmp/report.md lattice/nova-readability-report.md
+            yq -i '.last_updated = strenv(NOW) | .workers."nova-readability".last_run = strenv(NOW) | .workers."nova-readability".last_result = strenv(RESULT)' lattice/lattice_state.yaml
+            git add lattice/nova-readability-report.md lattice/lattice_state.yaml
+            git diff --cached --quiet && exit 0
+            git commit -q -m "nova-readability: weekly plain-text crawler audit $(date -u +%Y-%m-%d)"
+            if git push origin HEAD:main; then exit 0; fi
+            sleep 5
+          done
+          exit 1

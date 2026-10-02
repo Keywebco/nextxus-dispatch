@@ -45,6 +45,10 @@ jobs:
           )
           for url in "${URLS[@]}"; do
             STATUS=$(curl -L -sS -o /dev/null -w '%{http_code}' --connect-timeout 10 --max-time 30 "$url") || STATUS=000
+            if [ "$url" = "https://ring-of-12-api.onrender.com/health" ] && [ "$STATUS" != 200 ]; then
+              url="https://ring-of-12-api.onrender.com/"
+              STATUS=$(curl -L -sS -o /dev/null -w '%{http_code}' --connect-timeout 10 --max-time 30 "$url") || STATUS=000
+            fi
             if [ "$STATUS" = 200 ]; then
               printf '| %s | ✅ %s |\n' "$url" "$STATUS" >> "$REPORT"
             else

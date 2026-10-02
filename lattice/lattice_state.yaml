@@ -1,0 +1,93 @@
+# Federation LATTICE State Ledger
+# Single source of operational state for all Nova workers
+# Updated automatically by each worker after each run
+#   (wired 2026-10-02: nova-domain, nova-readability, nova-commerce;
+#    nova-health, nova-link, nova-dispatch not yet wired)
+# Schedules are GitHub Actions cron strings, which always run in UTC.
+#   During CDT (until 2026-11-01) local time = UTC - 5; during CST = UTC - 6.
+# DO NOT edit manually
+
+federation_version: "1.0"
+schedule_timezone: UTC
+last_updated: ""
+
+sites:
+  - url: https://nextxus.online
+    label: Core
+    last_health_check: ""
+    last_status: ""
+  - url: https://nextxus.org
+    label: Org Hub
+    last_health_check: ""
+    last_status: ""
+  - url: https://nextxus.tech
+    label: Tech/Admin
+    last_health_check: ""
+    last_status: ""
+  - url: https://nextxus.net
+    label: Net Node
+    last_health_check: ""
+    last_status: "BROKEN - no SSL, IONOS parking page"
+  - url: http://nextxus.us
+    label: Gatekeeper
+    last_health_check: ""
+    last_status: "PARTIAL - no SSL, http forwards to render"
+  - url: https://nextxus.space
+    label: Axiom/Roger AI Sim
+    last_health_check: ""
+    last_status: ""
+  - url: https://keywebco.github.io/nextxus-sim/
+    label: Conference Table
+    last_health_check: ""
+    last_status: ""
+  - url: https://keywebco.github.io/nextxus-sim/roger-sim.html
+    label: Roger AI Sim Page
+    last_health_check: ""
+    last_status: ""
+  - url: https://keywebco.github.io/nextxus-sim/aria-sim.html
+    label: Aria Sim
+    last_health_check: ""
+    last_status: ""
+  - url: https://keywebco.github.io/nextxus-sim/catalyst-sim.html
+    label: Catalyst Sim
+    last_health_check: ""
+    last_status: ""
+  - url: https://keywebco.github.io/nextxus-sim/muse-sim.html
+    label: Muse Sim
+    last_health_check: ""
+    last_status: ""
+
+workers:
+  nova-health:
+    schedule: "0 6,18 * * *"
+    last_run: ""
+    last_result: ""
+    assigned_sites: all
+  nova-link:
+    schedule: "0 7 * * 1"
+    last_run: ""
+    last_result: ""
+    assigned_sites: all
+  nova-dispatch:
+    schedule: "0 8 * * *"
+    last_run: ""
+    last_result: ""
+    reads_from: health-reports  # lattice reading not yet wired
+  nova-domain:
+    schedule: "0 9 * * *"
+    last_run: ""
+    last_result: ""
+    assigned_sites: all_domains
+  nova-readability:
+    schedule: "0 10 * * 3"
+    last_run: ""
+    last_result: ""
+    assigned_sites: all
+  nova-commerce:
+    schedule: "0 8 * * 2"
+    last_run: ""
+    last_result: ""
+    assigned_sites: storefront
+
+open_issues: []
+work_orders: []

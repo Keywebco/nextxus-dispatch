@@ -1,0 +1,74 @@
+name: Nova Domain Monitor
+on:
+  schedule:
+    - cron: '0 9 * * *'   # 09:00 UTC = 4 AM CDT daily
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: nova-domain
+  cancel-in-progress: false
+
+jobs:
+  check-domains:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check SSL certificates and domain reachability
+        shell: bash
+        run: |
+          domains=(
+            "nextxus.online"
+            "nextxus.org"
+            "nextxus.tech"
+            "nextxus.net"
+            "nextxus.us"
+            "nextxus.space"
+          )
+          report="/tmp/report.md"
+          echo "# Nova Domain Report" > $report
+          echo "Date: $(date -u)" >> $report
+          echo "" >> $report
+          failed=0
+          for domain in "${domains[@]}"; do
+            first=$(curl -s -m 15 -o /dev/null -w "%{http_code}" "https://$domain") || true
+            final=$(curl -sL -m 20 -o /dev/null -w "%{http_code} %{url_effective}" "https://$domain") || true
+            http_plain=$(curl -s -m 15 -o /dev/null -w "%{http_code}" "http://$domain") || true
+            ssl_expiry=$(echo | timeout 20 openssl s_client -servername "$domain" -connect "$domain:443" 2>/dev/null | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2) || true
+            [ -z "$ssl_expiry" ] && ssl_expiry="NO SSL"
+            echo "## $domain" >> $report
+            echo "- HTTPS status (first hop): ${first:-000}" >> $report
+            echo "- HTTPS status after redirects: ${final:-000}" >> $report
+            echo "- HTTP (no SSL) status: ${http_plain:-000}" >> $report
+            echo "- SSL expiry: $ssl_expiry" >> $report
+            if [ "$ssl_expiry" = "NO SSL" ] || [ "${final%% *}" != "200" ]; then
+              echo "- STATUS: FAIL" >> $report
+              failed=$((failed+1))
+            else
+              echo "- STATUS: OK" >> $report
+            fi
+            echo "" >> $report
+          done
+          echo "Failed: $failed / ${#domains[@]}" >> $report
+          echo "${#domains[@]} domains checked, $failed failing" > /tmp/result.txt
+      - name: Commit report and update lattice ledger
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          command -v yq >/dev/null || { sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 && sudo chmod +x /usr/local/bin/yq; }
+          git config user.name "nova-domain"
+          git config user.email "nova-domain@nextxus.online"
+          NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          RESULT=$(cat /tmp/result.txt 2>/dev/null || echo "run error - no result recorded")
+          export NOW RESULT
+          for attempt in 1 2 3; do
+            git fetch -q origin main && git reset -q --hard origin/main
+            cp /tmp/report.md lattice/nova-domain-report.md
+            yq -i '.last_updated = strenv(NOW) | .workers."nova-domain".last_run = strenv(NOW) | .workers."nova-domain".last_result = strenv(RESULT)' lattice/lattice_state.yaml
+            git add lattice/nova-domain-report.md lattice/lattice_state.yaml
+            git diff --cached --quiet && exit 0
+            git commit -q -m "nova-domain: daily certificate and reachability check $(date -u +%Y-%m-%d)"
+            if git push origin HEAD:main; then exit 0; fi
+            sleep 5
+          done
+          exit 1

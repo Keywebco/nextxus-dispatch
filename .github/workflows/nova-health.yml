@@ -1,0 +1,49 @@
+name: Nova Health Monitor
+on:
+  schedule:
+    - cron: '0 6 * * *'
+    - cron: '0 18 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: nova-health
+  cancel-in-progress: false
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Federation URLs
+        shell: bash
+        run: |
+          DATE=$(date -u +%Y-%m-%d-%H)
+          REPORT="health-reports/${DATE}.md"
+          printf '# Health Report %s UTC\n\n| URL | Status |\n|-----|--------|\n' "$DATE" > "$REPORT"
+          FAILED=0
+          for url in \n            "https://nextxus.online" \n            "https://nextxus.org" \n            "https://nextxus.studio" \n            "https://nextxus.tech" \n            "https://nextxus.space" \n            "https://nextxus.help" \n            "https://next-xus.com" \n            "https://keywebco.github.io" \n            "https://keywebco.github.io/nextxus-sim/" \n            "https://keywebco.github.io/nextxus-sim/roger-sim.html" \n            "https://keywebco.github.io/ring-of-12/" \n            "https://keywebco.github.io/ring-of-three/" \n            "https://keywebco.github.io/plexus-relay/" \n            "https://keywebco.github.io/nextxus-blog/" \n            "https://keywebco.github.io/nextxus-tools/" \n            "https://keywebco.github.io/sovereigntools/" \n            "https://keywebco.github.io/roger-keyserling/" \n            "https://keywebco.github.io/nextxus-ai-minds-lab/" \n            "https://roger-sim-api.onrender.com/health" \n            "https://ring-of-12-api.onrender.com/health"
+          do
+            STATUS=$(curl -L -sS -o /dev/null -w '%{http_code}' --connect-timeout 10 --max-time 30 "$url") || STATUS=000
+            if [ "$STATUS" = 200 ]; then
+              printf '| %s | ✅ %s |\n' "$url" "$STATUS" >> "$REPORT"
+            else
+              printf '| %s | ❌ %s |\n' "$url" "$STATUS" >> "$REPORT"
+              FAILED=$((FAILED+1))
+            fi
+          done
+          printf '\nFailed: %s / 20\n' "$FAILED" >> "$REPORT"
+          if [ "$FAILED" -gt 0 ]; then
+            echo "$FAILED Federation URLs failed; committing the report before marking run failed."
+            exit 1
+          fi
+      - name: Commit report even when checks fail
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add health-reports/
+          if ! git diff --cached --quiet; then
+            git commit -m "Nova health report $(date -u +%Y-%m-%d-%H)"
+            git push
+          fi

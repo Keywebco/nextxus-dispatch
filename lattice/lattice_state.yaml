@@ -9,7 +9,7 @@
 
 federation_version: "1.0"
 schedule_timezone: UTC
-last_updated: "2026-10-05T18:10:22Z"
+last_updated: "2026-10-06T14:42:29Z"
 sites:
   - url: https://nextxus.online
     label: Core
@@ -83,7 +83,7 @@ workers:
     assigned_sites: all
   nova-commerce:
     schedule: "0 8 * * 2"
-    last_run: "2026-10-02T02:36:54Z"
+    last_run: "2026-10-06T14:42:29Z"
     last_result: "21 Gumroad links checked, 0 failing"
     assigned_sites: storefront
 open_issues: []

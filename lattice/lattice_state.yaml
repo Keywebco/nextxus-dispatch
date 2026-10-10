@@ -9,7 +9,7 @@
 
 federation_version: "1.0"
 schedule_timezone: UTC
-last_updated: "2026-10-09T15:58:59Z"
+last_updated: "2026-10-10T15:08:09Z"
 sites:
   - url: https://nextxus.online
     label: Core
@@ -73,7 +73,7 @@ workers:
     reads_from: health-reports # lattice reading not yet wired
   nova-domain:
     schedule: "0 9 * * *"
-    last_run: "2026-10-09T15:58:59Z"
+    last_run: "2026-10-10T15:08:09Z"
     last_result: "6 domains checked, 2 failing"
     assigned_sites: all_domains
   nova-readability:

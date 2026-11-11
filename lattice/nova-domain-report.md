@@ -1,5 +1,5 @@
 # Nova Domain Report
-Date: Tue Nov 10 16:53:47 UTC 2026
+Date: Wed Nov 11 16:58:31 UTC 2026
 
 ## nextxus.online
 - HTTPS status (first hop): 200
@@ -19,7 +19,7 @@ Date: Tue Nov 10 16:53:47 UTC 2026
 - HTTPS status (first hop): 200
 - HTTPS status after redirects: 200 https://nextxus.tech/
 - HTTP (no SSL) status: 301
-- SSL expiry: Dec 11 13:06:34 2026 GMT
+- SSL expiry: Feb  8 20:34:33 2027 GMT
 - STATUS: OK
 
 ## nextxus.net

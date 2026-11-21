@@ -22,7 +22,6 @@ jobs:
           printf '# Health Report %s UTC\n\n| URL | Status |\n|-----|--------|\n' "$DATE" > "$REPORT"
           FAILED=0
           URLS=(
-            "https://nextxus.online"
             "https://nextxus.org"
             "https://nextxus.studio"
             "https://nextxus.tech"

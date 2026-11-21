@@ -15,4 +15,4 @@ Every day, Nova agents fire automatically. They check Federation sites and produ
 
 ## The Federation
 Built by Roger Keyserling. Truth Before Comfort, Legacy Before Ego, Give Without Reward.
-https://nextxus.online
+https://next-xus.net/

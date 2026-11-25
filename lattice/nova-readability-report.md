@@ -1,10 +1,5 @@
 # Nova Readability Report
-Date: Wed Nov 18 18:45:49 UTC 2026
-
-## https://nextxus.online
-- HTTP status: 200
-- Crawlable word count (no JavaScript): 2578
-- STATUS: OK
+Date: Wed Nov 25 19:52:06 UTC 2026
 
 ## https://nextxus.org
 - HTTP status: 200
@@ -41,4 +36,4 @@ Date: Wed Nov 18 18:45:49 UTC 2026
 - Crawlable word count (no JavaScript): 126
 - STATUS: OK
 
-Failed: 1 / 8
+Failed: 1 / 7

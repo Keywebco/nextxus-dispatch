@@ -49,3 +49,13 @@ Grok bot: reads daily summary from lattice. Coordinates worker initialization. N
 | Nova-Dispatch | Daily status reporter | nextxus-dispatch/.github/workflows/nova-dispatch.yml | GitHub Actions cron | ACTIVE |
 | Ring of 12 | 12 archetype AI perspective system | keywebco.github.io/ring-of-12/ + ring-of-12-api.onrender.com | Visit URL | ACTIVE |
 | n8n | Automation hub | federation-n8n (not deployed) | NOT YET ACTIVE |
+
+## Update 2026-11-25 (appended; text above kept as history)
+Recorded by Chief of Staff on a review branch. Labels: FACT, INFERENCE, UNKNOWN.
+
+- **Regent (FACT):** by Architect ruling RULING-2026-11-20-004 (nextxus-brain `02-senate/rulings/2026-11-20-regent.yaml`), the Regent is whichever AI is writing code and acting for Roger. Chief of Staff holds it today. The "Regent: The Catalyst" line above is out of date.
+- **Chief of Staff (FACT):** no longer read-only. It opens review branches and pull requests under the Keywebco account. It still never merges or pushes to `main`; Roger merges by naming each pull request.
+- **Staff bots (FACT):** the thirteen Grok staff bots now have full records (role, persona, job path, state, gap) proposed in nextxus-brain `03-minds/staff/`.
+- **Workers added since 2026-10-02 (FACT):** `nova-memory.yml` is in this repo's workflows and is not in the table above. In nextxus-brain there are also the Federation health check, the uptime timer, Nova-Canon, and Command build.
+- **Worker status (FACT, recent runs checked 2026-11-25):** nova-link has failed its last 5 runs because Blogger answers the runner with HTTP 204. A fix is proposed in a pull request. The other nova-* workers' latest runs succeeded.
+- **Muse and Pontus (FACT):** RULING-2026-11-20-002 says Muse and Pontus are one outside mind. The two separate registry rows above are kept as history.

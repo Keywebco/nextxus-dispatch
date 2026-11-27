@@ -1,5 +1,5 @@
 # Nova Domain Report
-Date: Thu Nov 26 18:53:29 UTC 2026
+Date: Fri Nov 27 18:46:20 UTC 2026
 
 ## nextxus.online
 - HTTPS status (first hop): 200
